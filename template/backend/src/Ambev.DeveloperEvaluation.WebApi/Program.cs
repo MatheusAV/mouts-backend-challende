@@ -8,7 +8,9 @@ using Ambev.DeveloperEvaluation.ORM;
 using Ambev.DeveloperEvaluation.WebApi.Middleware;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
 using Serilog;
+using System.Reflection;
 
 namespace Ambev.DeveloperEvaluation.WebApi;
 
@@ -18,7 +20,7 @@ public class Program
     {
         try
         {
-            Log.Information("Starting web application");
+            Log.Information("Iniciando aplicação web");
 
             WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
             builder.AddDefaultLogging();
@@ -27,7 +29,53 @@ public class Program
             builder.Services.AddEndpointsApiExplorer();
 
             builder.AddBasicHealthChecks();
-            builder.Services.AddSwaggerGen();
+
+            // Swagger com suporte a XML docs e annotations
+            builder.Services.AddSwaggerGen(options =>
+            {
+                options.SwaggerDoc("v1", new OpenApiInfo
+                {
+                    Title = "DeveloperStore – Sales API",
+                    Version = "v1",
+                    Description = "API de gerenciamento de vendas seguindo DDD, CQRS e External Identities pattern.",
+                    Contact = new OpenApiContact
+                    {
+                        Name = "DeveloperStore",
+                        Email = "dev@developerstore.com"
+                    }
+                });
+
+                // Habilitar comentários XML do controller
+                var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+                var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+                if (File.Exists(xmlPath))
+                    options.IncludeXmlComments(xmlPath);
+
+                // Suporte a [SwaggerOperation] annotations
+                options.EnableAnnotations();
+
+                // Autenticação JWT no Swagger UI
+                options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+                {
+                    Name = "Authorization",
+                    Type = SecuritySchemeType.Http,
+                    Scheme = "bearer",
+                    BearerFormat = "JWT",
+                    In = ParameterLocation.Header,
+                    Description = "Informe o token JWT no formato: Bearer {seu_token}"
+                });
+
+                options.AddSecurityRequirement(new OpenApiSecurityRequirement
+                {
+                    {
+                        new OpenApiSecurityScheme
+                        {
+                            Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
+                        },
+                        Array.Empty<string>()
+                    }
+                });
+            });
 
             builder.Services.AddDbContext<DefaultContext>(options =>
                 options.UseNpgsql(
@@ -53,15 +101,39 @@ public class Program
             builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
 
             var app = builder.Build();
+
+            // Aplica migrations automaticamente ao iniciar
+            using (var scope = app.Services.CreateScope())
+            {
+                try
+                {
+                    var db = scope.ServiceProvider.GetRequiredService<DefaultContext>();
+                    db.Database.Migrate();
+                    Log.Information("Migrations aplicadas com sucesso");
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning(ex, "Falha ao aplicar migrations — continuando sem migrar");
+                }
+            }
+
+            // Middleware global de exceções (antes de qualquer outro middleware)
             app.UseMiddleware<ValidationExceptionMiddleware>();
 
             if (app.Environment.IsDevelopment())
             {
                 app.UseSwagger();
-                app.UseSwaggerUI();
+                app.UseSwaggerUI(c =>
+                {
+                    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Sales API v1");
+                    c.RoutePrefix = "swagger";
+                    c.DisplayRequestDuration();
+                });
             }
 
-            app.UseHttpsRedirection();
+            // Sem HTTPS no Docker (desabilitado via ASPNETCORE_HTTPS_PORTS= no override)
+            if (!app.Environment.IsEnvironment("Docker"))
+                app.UseHttpsRedirection();
 
             app.UseAuthentication();
             app.UseAuthorization();
@@ -70,11 +142,14 @@ public class Program
 
             app.MapControllers();
 
+            Log.Information("Aplicação iniciada com sucesso");
+
             app.Run();
         }
         catch (Exception ex)
         {
-            Log.Fatal(ex, "Application terminated unexpectedly");
+            Log.Fatal(ex, "Aplicação encerrada inesperadamente");
+            throw;
         }
         finally
         {

@@ -75,3 +75,125 @@ This section includes links to the detailed documentation for the different API 
 This section describes the overall structure and organization of the project files and directories. 
 
 See [Project Structure](/.doc/project-structure.md)
+
+---
+
+## Setup & Running
+
+### Prerequisites
+
+- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+- [Docker](https://www.docker.com/products/docker-desktop) + Docker Compose
+
+### 1. Run with Docker Compose (recommended)
+
+```bash
+cd template/backend
+docker compose up --build
+```
+
+This starts:
+- **Web API** on `http://localhost:8080`
+- **PostgreSQL** on `localhost:5432`
+- **MongoDB** on `localhost:27017`
+- **Redis** on `localhost:6379`
+
+Swagger UI: `http://localhost:8080/swagger`
+
+### 2. Run locally (without Docker)
+
+Ensure PostgreSQL is running, then update `appsettings.Development.json` with your connection string.
+
+```bash
+cd template/backend
+
+# Restore packages
+dotnet restore
+
+# Apply migrations
+dotnet ef database update \
+  --project src/Ambev.DeveloperEvaluation.ORM \
+  --startup-project src/Ambev.DeveloperEvaluation.WebApi
+
+# Run API
+dotnet run --project src/Ambev.DeveloperEvaluation.WebApi
+```
+
+### 3. Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ConnectionStrings__DefaultConnection` | PostgreSQL connection string | See `appsettings.json` |
+| `Jwt__SecretKey` | JWT signing key | See `appsettings.json` |
+
+---
+
+## Testing
+
+```bash
+cd template/backend
+
+# Run all unit tests
+dotnet test tests/Ambev.DeveloperEvaluation.Unit
+
+# Run with coverage report
+./coverage-report.sh   # Linux/Mac
+coverage-report.bat    # Windows
+```
+
+---
+
+## Sales API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/sales` | Create a new sale |
+| `GET` | `/api/sales` | List sales (paginated, `?page=1&pageSize=10`) |
+| `GET` | `/api/sales/{id}` | Get sale by ID |
+| `PUT` | `/api/sales/{id}` | Update a sale |
+| `DELETE` | `/api/sales/{id}` | Delete a sale |
+| `PATCH` | `/api/sales/{id}/cancel` | Cancel a sale |
+| `PATCH` | `/api/sales/{saleId}/items/{itemId}/cancel` | Cancel a sale item |
+
+### Example: Create Sale
+
+```json
+POST /api/sales
+{
+  "customerId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "customerName": "ACME Corp",
+  "branchId": "3fa85f64-5717-4562-b3fc-2c963f66afa7",
+  "branchName": "Main Branch",
+  "saleDate": "2024-12-01T10:00:00Z",
+  "items": [
+    {
+      "productId": "3fa85f64-5717-4562-b3fc-2c963f66afa8",
+      "productName": "Widget Pro",
+      "quantity": 10,
+      "unitPrice": 29.90
+    }
+  ]
+}
+```
+
+Response includes auto-calculated discount (20% for 10 items) and total amount.
+
+### Business Rules Applied Automatically
+
+| Quantity | Discount |
+|----------|----------|
+| 1–3 | 0% |
+| 4–9 | 10% |
+| 10–20 | 20% |
+| > 20 | Error |
+
+---
+
+## Domain Events (logged)
+
+Events are published via MediatR and logged to the application log:
+
+- `SaleCreated` — on sale creation
+- `SaleModified` — on sale update
+- `SaleCancelled` — on sale cancellation
+- `ItemCancelled` — on item cancellation
