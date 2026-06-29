@@ -11,30 +11,12 @@ namespace Ambev.DeveloperEvaluation.ORM.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<DateTime>(
-                name: "CreatedAt",
-                table: "Users",
-                type: "timestamp with time zone",
-                nullable: false,
-                defaultValueSql: "now()");
-
-            migrationBuilder.AddColumn<DateTime>(
-                name: "UpdatedAt",
-                table: "Users",
-                type: "timestamp with time zone",
-                nullable: true);
+            // Colunas CreatedAt e UpdatedAt criadas na migration InitialMigrations
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "CreatedAt",
-                table: "Users");
-
-            migrationBuilder.DropColumn(
-                name: "UpdatedAt",
-                table: "Users");
         }
     }
 }
