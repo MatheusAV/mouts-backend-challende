@@ -1,113 +1,121 @@
-# Developer Evaluation Project
+# DeveloperStore — Sales API
 
-`READ CAREFULLY`
-
-## Use Case
-**You are a developer on the DeveloperStore team. Now we need to implement the API prototypes.**
-
-As we work with `DDD`, to reference entities from other domains, we use the `External Identities` pattern with denormalization of entity descriptions.
-
-Therefore, you will write an API (complete CRUD) that handles sales records. The API needs to be able to inform:
-
-* Sale number
-* Date when the sale was made
-* Customer
-* Total sale amount
-* Branch where the sale was made
-* Products
-* Quantities
-* Unit prices
-* Discounts
-* Total amount for each item
-* Cancelled/Not Cancelled
-
-It's not mandatory, but it would be a differential to build code for publishing events of:
-* SaleCreated
-* SaleModified
-* SaleCancelled
-* ItemCancelled
-
-If you write the code, **it's not required** to actually publish to any Message Broker. You can log a message in the application log or however you find most convenient.
-
-### Business Rules
-
-* Purchases above 4 identical items have a 10% discount
-* Purchases between 10 and 20 identical items have a 20% discount
-* It's not possible to sell above 20 identical items
-* Purchases below 4 items cannot have a discount
-
-These business rules define quantity-based discounting tiers and limitations:
-
-1. Discount Tiers:
-   - 4+ items: 10% discount
-   - 10-20 items: 20% discount
-
-2. Restrictions:
-   - Maximum limit: 20 items per product
-   - No discounts allowed for quantities below 4 items
-
-## Overview
-This section provides a high-level overview of the project and the various skills and competencies it aims to assess for developer candidates. 
-
-See [Overview](/.doc/overview.md)
-
-## Tech Stack
-This section lists the key technologies used in the project, including the backend, testing, frontend, and database components. 
-
-See [Tech Stack](/.doc/tech-stack.md)
-
-## Frameworks
-This section outlines the frameworks and libraries that are leveraged in the project to enhance development productivity and maintainability. 
-
-See [Frameworks](/.doc/frameworks.md)
-
-<!-- 
-## API Structure
-This section includes links to the detailed documentation for the different API resources:
-- [API General](./docs/general-api.md)
-- [Products API](/.doc/products-api.md)
-- [Carts API](/.doc/carts-api.md)
-- [Users API](/.doc/users-api.md)
-- [Auth API](/.doc/auth-api.md)
--->
-
-## Project Structure
-This section describes the overall structure and organization of the project files and directories. 
-
-See [Project Structure](/.doc/project-structure.md)
+> Backend challenge implementing a complete **Sales API** built on top of an ASP.NET Core 8 template, following **DDD**, **CQRS**, **SOLID** principles and the **External Identities** pattern.
 
 ---
 
-## Setup & Running
+## Table of Contents
+
+- [Architecture](#architecture)
+- [Tech Stack](#tech-stack)
+- [Business Rules](#business-rules)
+- [Getting Started](#getting-started)
+- [API Reference](#api-reference)
+- [Domain Events](#domain-events)
+- [Testing](#testing)
+- [Project Structure](#project-structure)
+- [SOLID Principles Applied](#solid-principles-applied)
+
+---
+
+## Architecture
+
+The solution is organized in four layers following **Domain-Driven Design**:
+
+```
+┌─────────────────────────────────────────────┐
+│              WebAPI (Presentation)           │
+│   Controllers · DTOs · Profiles · Middleware │
+├─────────────────────────────────────────────┤
+│           Application (Use Cases)            │
+│   Commands · Queries · Handlers · Events     │
+├─────────────────────────────────────────────┤
+│              Domain (Core)                   │
+│   Entities · Aggregates · Repositories       │
+│   Services · Domain Events · Value Objects   │
+├─────────────────────────────────────────────┤
+│         Infrastructure (ORM / IoC)           │
+│   EF Core · PostgreSQL · Repositories · DI   │
+└─────────────────────────────────────────────┘
+```
+
+**Key design decisions:**
+
+- **CQRS** via MediatR — commands and queries are fully decoupled
+- **External Identities** — Customer and Branch are denormalized on the Sale aggregate (no cross-domain FK)
+- **Strategy Pattern** (`IDiscountStrategy`) — discount tiers are swappable without touching the domain entity *(OCP)*
+- **Domain Events** — `SaleCreated`, `SaleModified`, `SaleCancelled`, `ItemCancelled` published via MediatR and logged via `ILogger`
+- **Repository Pattern** — `ISaleRepository` abstracts all persistence concerns
+- **FluentValidation** injected as `IValidator<T>` *(DIP)*
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Runtime | .NET 8 / C# 12 |
+| Web Framework | ASP.NET Core Web API |
+| ORM | Entity Framework Core 8 + Npgsql |
+| Database | PostgreSQL 13 |
+| Mediator | MediatR 12 |
+| Mapping | AutoMapper 13 |
+| Validation | FluentValidation 11 |
+| Documentation | Swashbuckle / Swagger UI |
+| Logging | Serilog |
+| Testing | xUnit · FluentAssertions · NSubstitute |
+| Infrastructure | Docker · Docker Compose |
+| Cache | Redis 7 |
+| NoSQL | MongoDB 8 |
+
+---
+
+## Business Rules
+
+Discounts are applied **automatically** based on quantity per identical item:
+
+| Quantity | Discount |
+|---|---|
+| 1 – 3 items | 0% |
+| 4 – 9 items | 10% |
+| 10 – 20 items | 20% |
+| > 20 items | ❌ Error — not allowed |
+
+Rules are enforced in `QuantityDiscountStrategy` (implements `IDiscountStrategy`) and applied in `SaleItem.ApplyDiscount()`.
+
+---
+
+## Getting Started
 
 ### Prerequisites
 
-- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
-- [Docker](https://www.docker.com/products/docker-desktop) + Docker Compose
+- [Docker Desktop](https://www.docker.com/products/docker-desktop) (recommended)
+- **or** [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) + PostgreSQL
 
-### 1. Run with Docker Compose (recommended)
+### Run with Docker (recommended)
 
 ```bash
 cd template/backend
 docker compose up --build
 ```
 
-This starts:
-- **Web API** on `http://localhost:8080`
-- **PostgreSQL** on `localhost:5432`
-- **MongoDB** on `localhost:27017`
-- **Redis** on `localhost:6379`
+Services started:
 
-Swagger UI: `http://localhost:8080/swagger`
+| Service | URL |
+|---|---|
+| Web API | http://localhost:8080 |
+| Swagger UI | http://localhost:8080/swagger |
+| PostgreSQL | localhost:5432 |
+| MongoDB | localhost:27017 |
+| Redis | localhost:6379 |
 
-### 2. Run locally (without Docker)
+> Database migrations are applied automatically on startup.
 
-Ensure PostgreSQL is running, then update `appsettings.Development.json` with your connection string.
+### Run locally
 
 ```bash
 cd template/backend
 
-# Restore packages
 dotnet restore
 
 # Apply migrations
@@ -115,50 +123,42 @@ dotnet ef database update \
   --project src/Ambev.DeveloperEvaluation.ORM \
   --startup-project src/Ambev.DeveloperEvaluation.WebApi
 
-# Run API
 dotnet run --project src/Ambev.DeveloperEvaluation.WebApi
 ```
 
-### 3. Environment Variables
+Update `appsettings.Development.json` with your PostgreSQL connection string beforehand.
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `ConnectionStrings__DefaultConnection` | PostgreSQL connection string | See `appsettings.json` |
-| `Jwt__SecretKey` | JWT signing key | See `appsettings.json` |
+### Environment variables
 
----
-
-## Testing
-
-```bash
-cd template/backend
-
-# Run all unit tests
-dotnet test tests/Ambev.DeveloperEvaluation.Unit
-
-# Run with coverage report
-./coverage-report.sh   # Linux/Mac
-coverage-report.bat    # Windows
-```
+| Variable | Description |
+|---|---|
+| `ConnectionStrings__DefaultConnection` | PostgreSQL connection string |
+| `Jwt__SecretKey` | JWT signing secret (min. 32 chars) |
 
 ---
 
-## Sales API Endpoints
+## API Reference
+
+Full interactive docs available at **`http://localhost:8080/swagger`** after running the project.
+
+### Sales endpoints
 
 | Method | Endpoint | Description |
-|--------|----------|-------------|
+|---|---|---|
 | `POST` | `/api/sales` | Create a new sale |
-| `GET` | `/api/sales` | List sales (paginated, `?page=1&pageSize=10`) |
+| `GET` | `/api/sales` | List sales (paginated) |
 | `GET` | `/api/sales/{id}` | Get sale by ID |
 | `PUT` | `/api/sales/{id}` | Update a sale |
 | `DELETE` | `/api/sales/{id}` | Delete a sale |
 | `PATCH` | `/api/sales/{id}/cancel` | Cancel a sale |
-| `PATCH` | `/api/sales/{saleId}/items/{itemId}/cancel` | Cancel a sale item |
+| `PATCH` | `/api/sales/{saleId}/items/{itemId}/cancel` | Cancel a single item |
 
-### Example: Create Sale
+### Create sale — request body
 
 ```json
 POST /api/sales
+Authorization: Bearer <token>
+
 {
   "customerId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
   "customerName": "ACME Corp",
@@ -176,24 +176,116 @@ POST /api/sales
 }
 ```
 
-Response includes auto-calculated discount (20% for 10 items) and total amount.
+### Create sale — response
 
-### Business Rules Applied Automatically
+```json
+{
+  "success": true,
+  "message": "Venda criada com sucesso",
+  "data": {
+    "id": "a1b2c3d4-...",
+    "saleNumber": "SALE-20241201-A1B2C3D4",
+    "totalAmount": 239.20,
+    "items": [
+      {
+        "productName": "Widget Pro",
+        "quantity": 10,
+        "unitPrice": 29.90,
+        "discount": 0.20,
+        "totalAmount": 239.20
+      }
+    ]
+  }
+}
+```
 
-| Quantity | Discount |
-|----------|----------|
-| 1–3 | 0% |
-| 4–9 | 10% |
-| 10–20 | 20% |
-| > 20 | Error |
+### List sales — query params
+
+```
+GET /api/sales?page=1&pageSize=10
+```
+
+### Error responses
+
+| Status | Meaning |
+|---|---|
+| `400` | Validation error (invalid input) |
+| `401` | Unauthorized (missing or invalid JWT) |
+| `404` | Sale or item not found |
+| `422` | Domain rule violation (e.g. quantity > 20) |
 
 ---
 
-## Domain Events (logged)
+## Domain Events
 
-Events are published via MediatR and logged to the application log:
+Events are published via **MediatR** `INotification` and handled by dedicated handlers that log the occurrence using `ILogger`.
 
-- `SaleCreated` — on sale creation
-- `SaleModified` — on sale update
-- `SaleCancelled` — on sale cancellation
-- `ItemCancelled` — on item cancellation
+| Event | Trigger |
+|---|---|
+| `SaleCreatedEvent` | Sale successfully created |
+| `SaleModifiedEvent` | Sale updated |
+| `SaleCancelledEvent` | Sale cancelled |
+| `ItemCancelledEvent` | A single item cancelled |
+
+Each event handler is a separate class *(SRP)* and can be extended to publish to a message broker without modifying domain logic.
+
+---
+
+## Testing
+
+```bash
+cd template/backend
+
+# Unit tests
+dotnet test tests/Ambev.DeveloperEvaluation.Unit
+
+# With coverage report
+coverage-report.bat    # Windows
+./coverage-report.sh   # Linux / macOS
+```
+
+Test coverage includes:
+
+- `SaleTests` — discount rules, cancel, total recalculation, domain exceptions
+- `CreateSaleHandlerTests` — handler orchestration, validation, discount strategy injection
+
+---
+
+## Project Structure
+
+```
+template/backend/
+├── src/
+│   ├── Ambev.DeveloperEvaluation.Domain/
+│   │   ├── Entities/           # Sale, SaleItem (aggregates)
+│   │   ├── Events/             # SaleCreated, SaleModified, SaleCancelled, ItemCancelled
+│   │   ├── Repositories/       # ISaleRepository
+│   │   └── Services/           # IDiscountStrategy, ISaleNumberGenerator
+│   ├── Ambev.DeveloperEvaluation.Application/
+│   │   └── Sales/              # CQRS handlers, commands, queries, profiles, event handlers
+│   ├── Ambev.DeveloperEvaluation.ORM/
+│   │   ├── Mapping/            # EF Core entity configurations
+│   │   ├── Repositories/       # SaleRepository implementation
+│   │   └── Migrations/         # Database migrations
+│   ├── Ambev.DeveloperEvaluation.IoC/
+│   │   └── ModuleInitializers/ # Dependency injection registration
+│   └── Ambev.DeveloperEvaluation.WebApi/
+│       ├── Features/Sales/     # Controller, DTOs, request validators, profiles
+│       └── Middleware/         # Global exception handler
+└── tests/
+    └── Ambev.DeveloperEvaluation.Unit/
+        ├── Domain/             # SaleTests
+        └── Application/        # CreateSaleHandlerTests
+```
+
+---
+
+## SOLID Principles Applied
+
+| Principle | Implementation |
+|---|---|
+| **SRP** | Each handler, event handler, and service has a single, well-defined responsibility |
+| **OCP** | `IDiscountStrategy` allows new discount tiers without modifying `SaleItem` |
+| **LSP** | All repository and strategy implementations are fully substitutable |
+| **ISP** | `ISaleRepository` exposes only what consumers need |
+| **DIP** | Handlers depend on `IValidator<T>`, `IDiscountStrategy`, `ISaleNumberGenerator` — never on concrete types |
