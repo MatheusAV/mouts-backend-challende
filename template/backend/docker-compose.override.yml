@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  ambev.developerevaluation.webapi:
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_HTTP_PORTS=8080
+      - ASPNETCORE_HTTPS_PORTS=
+      - ConnectionStrings__DefaultConnection=Host=ambev.developerevaluation.database;Port=5432;Database=developer_evaluation;Username=developer;Password=ev@luAt10n
+    ports:
+      - "8080:8080"
+    depends_on:
+      ambev.developerevaluation.database:
+        condition: service_healthy
+
+  ambev.developerevaluation.database:
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U developer -d developer_evaluation"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  ambev.developerevaluation.nosql:
+    ports:
+      - "27017:27017"
+
+  ambev.developerevaluation.cache:
+    ports:
+      - "6379:6379"
