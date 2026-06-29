@@ -363,3 +363,9 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 .idea
+
+# Scripts e resultados de teste local
+test-api.ps1
+test-results.txt
+run-tests.bat
+git-commit.bat

@@ -113,7 +113,7 @@ public class Program
                 }
                 catch (Exception ex)
                 {
-                    Log.Warning(ex, "Falha ao aplicar migrations — continuando sem migrar");
+                    Log.Warning(ex, "Falha ao aplicar migrations");
                 }
             }
 
