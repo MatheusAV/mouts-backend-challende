@@ -102,53 +102,19 @@ public class Program
 
             var app = builder.Build();
 
-            // Aplica migrations e garante schema ao iniciar
+            // Aplica migrations automaticamente ao iniciar
             using (var scope = app.Services.CreateScope())
             {
-                var db = scope.ServiceProvider.GetRequiredService<DefaultContext>();
-
-                try { db.Database.Migrate(); Log.Information("Migrations aplicadas"); }
-                catch (Exception ex) { Log.Warning(ex, "Migrations falharam, aplicando schema via SQL"); }
-
                 try
                 {
-                    db.Database.ExecuteSqlRaw(@"
-                        ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""CreatedAt"" timestamp with time zone NOT NULL DEFAULT now();
-                        ALTER TABLE ""Users"" ADD COLUMN IF NOT EXISTS ""UpdatedAt"" timestamp with time zone;
-                        CREATE TABLE IF NOT EXISTS ""Sales"" (
-                            ""Id""           uuid NOT NULL DEFAULT gen_random_uuid(),
-                            ""SaleNumber""   character varying(50) NOT NULL,
-                            ""SaleDate""     timestamp with time zone NOT NULL,
-                            ""CustomerId""   uuid NOT NULL,
-                            ""CustomerName"" character varying(200) NOT NULL,
-                            ""BranchId""     uuid NOT NULL,
-                            ""BranchName""   character varying(200) NOT NULL,
-                            ""TotalAmount""  numeric(18,2) NOT NULL,
-                            ""IsCancelled""  boolean NOT NULL DEFAULT false,
-                            ""CreatedAt""    timestamp with time zone NOT NULL DEFAULT now(),
-                            ""UpdatedAt""    timestamp with time zone,
-                            CONSTRAINT ""PK_Sales"" PRIMARY KEY (""Id"")
-                        );
-                        CREATE UNIQUE INDEX IF NOT EXISTS ""IX_Sales_SaleNumber"" ON ""Sales"" (""SaleNumber"");
-                        CREATE TABLE IF NOT EXISTS ""SaleItems"" (
-                            ""Id""          uuid NOT NULL DEFAULT gen_random_uuid(),
-                            ""SaleId""      uuid NOT NULL,
-                            ""ProductId""   uuid NOT NULL,
-                            ""ProductName"" character varying(200) NOT NULL,
-                            ""Quantity""    integer NOT NULL,
-                            ""UnitPrice""   numeric(18,2) NOT NULL,
-                            ""Discount""    numeric(5,4) NOT NULL,
-                            ""TotalAmount"" numeric(18,2) NOT NULL,
-                            ""IsCancelled"" boolean NOT NULL DEFAULT false,
-                            CONSTRAINT ""PK_SaleItems"" PRIMARY KEY (""Id""),
-                            CONSTRAINT ""FK_SaleItems_Sales_SaleId"" FOREIGN KEY (""SaleId"")
-                                REFERENCES ""Sales"" (""Id"") ON DELETE CASCADE
-                        );
-                        CREATE INDEX IF NOT EXISTS ""IX_SaleItems_SaleId"" ON ""SaleItems"" (""SaleId"");
-                    ");
-                    Log.Information("Schema garantido com sucesso");
+                    var db = scope.ServiceProvider.GetRequiredService<DefaultContext>();
+                    db.Database.Migrate();
+                    Log.Information("Migrations aplicadas com sucesso");
                 }
-                catch (Exception ex) { Log.Error(ex, "Falha critica ao garantir schema"); }
+                catch (Exception ex)
+                {
+                    Log.Warning(ex, "Falha ao aplicar migrations");
+                }
             }
 
             // Middleware global de exceções (antes de qualquer outro middleware)
