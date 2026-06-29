@@ -1,0 +1,55 @@
+
+=== 0. Health Check ===
+  [PASS] GET /health (200)
+
+=== 1. Criar usuario de teste ===
+     Enviando: {"password":"Test@1234","phone":"+5511999990000","username":"testuser7321","email":"test7899@developerstore.com","role":3,"status":1}
+  [PASS] POST /api/users (201)
+
+=== 2. Autenticar e obter token JWT ===
+  [PASS] POST /api/auth (200)
+     Auth raw: {"data":{"data":{"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJuYW1laWQiOiIxMGFjZGJjMS0wNTlkLTQ1MTgtYmI3My1mOWE5YWU0ZDE0NDAiLCJ1bmlxdWVfbmFtZSI6InRlc3R1c2VyNzMyMSIsInJvbGUiOiJBZG1pbiIsIm5iZiI6MTc4Mjc3MDY1MSwiZXhwIjoxNzgyNzk5NDUxLCJpYXQiOjE3ODI3NzA2NTF9._d4kHfWnE-w72Y7tbZX35brO9p9h9qnZA7Lby_R8GwU","email":"test7899@developerstore.com","name":"testuser7321","role":"Admin"},"success":true,"message":"User authenticated successfully","errors":[]},"success":true,"message":"","errors":[]}
+  [WARN] Token nao encontrado - endpoints autenticados podem falhar
+
+=== 3. Criar venda (sem desconto - 2 itens) ===
+  [PASS] POST /api/sales (2 itens, 0pct desconto) (201)
+     SaleId: 8d77fc14-5434-44c7-bb80-c02e321970f4
+
+=== 4. Criar venda com 10pct de desconto (5 itens) ===
+  [PASS] POST /api/sales (5 itens, 10pct desconto) (201)
+  [PASS] Desconto 10pct aplicado corretamente
+
+=== 5. Criar venda com 20pct de desconto (10 itens) ===
+  [PASS] POST /api/sales (10 itens, 20pct desconto) (201)
+  [PASS] Desconto 20pct aplicado corretamente
+
+=== 6. Tentar criar venda com mais de 20 itens (deve dar erro) ===
+  [PASS] POST /api/sales (21 itens) retornou 400 - regra aplicada
+
+=== 7. Buscar venda por ID ===
+  [PASS] GET /api/sales/{id} (200)
+
+=== 8. Listar vendas (paginado) ===
+  [PASS] GET /api/sales?page=1&pageSize=10 (200)
+
+=== 9. Atualizar venda ===
+  [PASS] PUT /api/sales/{id} (200)
+
+=== 10. Cancelar item da venda ===
+
+=== 11. Cancelar venda ===
+  [PASS] PATCH /api/sales/{id}/cancel (200)
+
+=== 12. Deletar venda ===
+  [PASS] DELETE /api/sales/{id} (200)
+
+=== 13. Buscar venda deletada (deve retornar 404) ===
+  [PASS] GET /api/sales/{id} apos delete (404 esperado) (404)
+
+=== 14. Validacoes - campos obrigatorios ausentes ===
+  [PASS] POST /api/sales sem body retornou 400
+
+============================================
+  RESULTADO: 16/16 testes passaram
+============================================
+
